@@ -1,0 +1,51 @@
+## JewelOS Architecture Constraints — 14 Rules Every Agent MUST Follow
+
+1.  **Multi-Tenant Isolation**: Every Prisma query MUST include `tenantId` in WHERE.
+    Never expose data across tenants. Use middleware to enforce automatically.
+
+2.  **Pricing Type Flag**: ALL price calculations MUST check `pricingType` first:
+    - WEIGHT_BASED: price = net_weight × live_rate + making_charge + stone_value
+    - FIXED_MRP: price = supplier_mrp (no rate formula applied)
+    Never assume all products are weight-based.
+
+3.  **Per-Line GST**: GST is calculated per line item, not on invoice total.
+    Each line has its own HSN code and GST rate. Gold jewellery = 3% (HSN 7113),
+    repairs = 18% (HSN 9988). Mixed carts MUST show split GST on invoice.
+
+4.  **Dual-Column Supplier Ledger**: Supplier balances track BOTH Rs. (monetary)
+    AND grams (metal) simultaneously. A supplier can owe you money AND you can owe
+    them gold at the same time.
+
+5.  **Net Direction Logic**: Exchange transactions compute `netDirection`:
+    - If new_purchase > old_gold_value → CUSTOMER_PAYS
+    - If old_gold_value > new_purchase → STORE_PAYS
+    POS must handle both directions and flip UI accordingly.
+
+6.  **KYC Auto-Trigger**: KYC mandatory when single transaction > ₹50,000.
+    System MUST block invoice finalization until KYC is captured.
+    Aadhaar stored AES-256 encrypted. Never in logs or API responses.
+
+7.  **Transfer Stock Isolation**: Items with TransferStatus = IN_TRANSIT are NOT
+    available in either branch's stock count. They exist only in transfer record.
+
+8.  **Scheme Redemption = Bill Credit**: Scheme maturity value applied as BILL CREDIT
+    on a new purchase. NOT a payment mode. Reduces invoice total before payment.
+
+9.  **Double-Entry Accounting**: Every financial transaction (sale, purchase, return,
+    payment) MUST auto-post matching debit + credit journal entries. No single-sided.
+
+10. **Responsive Mobile-First**: All UI works on tablets (primary POS device) and
+    phones (field agents). Desktop sidebar → mobile bottom tabs. Min touch: 44px.
+
+11. **Unit of Measure Awareness**: Products measured in GRAMS, PIECES, CARATS, or
+    MILLIGRAMS. All quantity displays and calculations respect `unitOfMeasure`.
+
+12. **Strict TypeScript**: strict: true in tsconfig. No `any` except explicit escape
+    hatches. All API responses typed with Zod schemas. React Query for server state.
+
+13. **Branch-Scoped Operations**: Users see data for their assigned branch only
+    (except OWNER who sees all). Every list query filters by branchId.
+
+14. **Git Discipline**: `npx tsc --noEmit` must pass before every commit.
+    TransactionSession is the parent container for every customer visit.
+    Zod validation on all forms and API inputs — no exceptions.

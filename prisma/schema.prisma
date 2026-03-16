@@ -1,0 +1,681 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── ENUMS ──────────────────────────────────────────────────────────
+
+enum PricingType {
+  WEIGHT_BASED
+  FIXED_MRP
+}
+
+enum PurchaseType {
+  OUTRIGHT
+  CONSIGNMENT_INWARD
+  ADVANCE_BOOKING
+}
+
+enum TransactionType {
+  SALE
+  PURCHASE
+  EXCHANGE
+  RETURN_INWARD
+  RETURN_OUTWARD
+  SCHEME_REDEMPTION
+  REPAIR
+}
+
+enum SchemeType {
+  FIXED_MONEY
+  DAILY_CHIT
+  FLEXIBLE
+  WEIGHT_ACCUMULATION
+}
+
+enum UnitOfMeasure {
+  GRAMS
+  PIECES
+  CARATS
+  MILLIGRAMS
+}
+
+enum StockCategory {
+  GOLD_JEWELLERY
+  SILVER_JEWELLERY
+  DIAMOND_JEWELLERY
+  PLATINUM_JEWELLERY
+  GOLD_BULLION
+  SILVER_BULLION
+  GOLD_COIN
+  SILVER_COIN
+  GEMSTONE
+  GIFT_ARTICLE
+  WATCH
+  ACCESSORY
+}
+
+enum TransferStatus {
+  REQUESTED
+  IN_TRANSIT
+  RECEIVED
+  CANCELLED
+}
+
+enum NetDirection {
+  CUSTOMER_PAYS
+  STORE_PAYS
+}
+
+enum Role {
+  OWNER
+  MANAGER
+  SALESPERSON
+  CASHIER
+  KARIGAR
+  ACCOUNTANT
+  VIEWER
+}
+
+enum MetalType {
+  GOLD_24K
+  GOLD_22K
+  GOLD_18K
+  SILVER
+  PLATINUM
+}
+
+enum PaymentMode {
+  CASH
+  UPI
+  CARD
+  NEFT
+  CHEQUE
+  SCHEME_CREDIT
+  OLD_GOLD
+}
+
+enum SchemeStatus {
+  ACTIVE
+  MATURED
+  REDEEMED
+  CANCELLED
+}
+
+enum InstallmentStatus {
+  PAID
+  DUE
+  OVERDUE
+  SKIPPED
+}
+
+enum LoyaltyTier {
+  BRONZE
+  SILVER
+  GOLD
+  DIAMOND
+}
+
+enum InvoiceSize {
+  A4
+  THERMAL_58MM
+}
+
+enum JournalType {
+  DEBIT
+  CREDIT
+}
+
+enum DayBookStatus {
+  OPEN
+  CLOSED
+  APPROVED
+}
+
+// ─── MULTI-TENANCY ──────────────────────────────────────────────────
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  legalName String?
+  gstin     String?
+  pan       String?
+  phone     String
+  email     String?
+  logoUrl   String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branches     Branch[]
+  users        User[]
+  products     Product[]
+  suppliers    Supplier[]
+  customers    Customer[]
+  metalRates   MetalRate[]
+  schemes      Scheme[]
+  lockers      SafeLocker[]
+  chartOfAccounts ChartOfAccount[]
+
+  @@map("tenants")
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  address   String?
+  city      String?
+  state     String?
+  pincode   String?
+  phone     String?
+  isMain    Boolean  @default(false)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant            Tenant              @relation(fields: [tenantId], references: [id])
+  users             User[]
+  stockItems        StockItem[]
+  purchaseOrders    PurchaseOrder[]
+  transactions      TransactionSession[]
+  dayBooks          DayBook[]
+  transfersOut      StockTransfer[]     @relation("TransferFrom")
+  transfersIn       StockTransfer[]     @relation("TransferTo")
+
+  @@map("branches")
+}
+
+// ─── AUTH & RBAC ────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  tenantId      String
+  branchId      String?
+  phone         String    @unique
+  name          String
+  email         String?
+  role          Role      @default(SALESPERSON)
+  avatarUrl     String?
+  active        Boolean   @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  branch        Branch?   @relation(fields: [branchId], references: [id])
+  otpCodes      OtpCode[]
+  transactions  TransactionSession[]
+  schemeCollections SchemeInstallment[] @relation("CollectedBy")
+  journalEntries   JournalEntry[]
+
+  @@map("users")
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  userId    String
+  code      String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("otp_codes")
+}
+
+// ─── PRODUCT CATALOGUE & INVENTORY ─────────────────────────────────
+
+model Product {
+  id                String        @id @default(cuid())
+  tenantId          String
+  sku               String
+  name              String
+  description       String?
+  category          StockCategory
+  metalType         MetalType?
+  pricingType       PricingType
+  purity            Float?
+  hsnCode           String
+  gstRate           Float         @default(3.0)
+  unitOfMeasure     UnitOfMeasure @default(GRAMS)
+  makingChargeType  String?       @default("PER_GRAM")
+  makingChargeValue Float?
+  imageUrl          String?
+  barcode           String?
+  rfidTag           String?
+  active            Boolean       @default(true)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  stockItems StockItem[]
+  lineItems  TransactionLineItem[]
+  grnItems   GrnLineItem[]
+
+  @@unique([tenantId, sku])
+  @@map("products")
+}
+
+model StockItem {
+  id              String        @id @default(cuid())
+  productId       String
+  branchId        String
+  grossWeight     Float?
+  netWeight       Float?
+  stoneWeight     Float?
+  stoneValue      Float?
+  supplierMrp     Float?
+  costPrice       Float?
+  tagPrice        Float?
+  quantity         Int           @default(1)
+  available       Boolean       @default(true)
+  barcode         String?
+  rfidTag         String?
+  batchNumber     String?
+  grnId           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  product         Product       @relation(fields: [productId], references: [id])
+  branch          Branch        @relation(fields: [branchId], references: [id])
+  grn             GoodsReceivedNote? @relation(fields: [grnId], references: [id])
+  transferItems   StockTransferItem[]
+
+  @@map("stock_items")
+}
+
+// ─── SUPPLIER & PROCUREMENT ─────────────────────────────────────────
+
+model Supplier {
+  id            String   @id @default(cuid())
+  tenantId      String
+  name          String
+  contactPerson String?
+  phone         String?
+  email         String?
+  gstin         String?
+  pan           String?
+  address       String?
+  city          String?
+  state         String?
+  balanceRs     Float    @default(0)
+  balanceGrams  Float    @default(0)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  purchaseOrders PurchaseOrder[]
+
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id              String       @id @default(cuid())
+  tenantId        String
+  branchId        String
+  supplierId      String
+  poNumber        String
+  purchaseType    PurchaseType
+  status          String       @default("DRAFT")
+  totalAmount     Float?
+  notes           String?
+  expectedDate    DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  branch   Branch   @relation(fields: [branchId], references: [id])
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+  grns     GoodsReceivedNote[]
+
+  @@map("purchase_orders")
+}
+
+model GoodsReceivedNote {
+  id                        String   @id @default(cuid())
+  purchaseOrderId           String
+  grnNumber                 String
+  receivedDate              DateTime @default(now())
+  requiresWeightVerification Boolean  @default(true)
+  verifiedBy                String?
+  notes                     String?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  lineItems     GrnLineItem[]
+  stockItems    StockItem[]
+
+  @@map("goods_received_notes")
+}
+
+model GrnLineItem {
+  id              String        @id @default(cuid())
+  grnId           String
+  productId       String
+  quantity        Int           @default(1)
+  grossWeight     Float?
+  netWeight       Float?
+  stoneWeight     Float?
+  stoneValue      Float?
+  wastagePercent  Float?
+  unitOfMeasure   UnitOfMeasure @default(GRAMS)
+  unitPrice       Float?
+  totalPrice      Float?
+  createdAt       DateTime      @default(now())
+
+  grn     GoodsReceivedNote @relation(fields: [grnId], references: [id])
+  product Product           @relation(fields: [productId], references: [id])
+
+  @@map("grn_line_items")
+}
+
+// ─── CUSTOMER CRM ───────────────────────────────────────────────────
+
+model Customer {
+  id                    String      @id @default(cuid())
+  tenantId              String
+  phone                 String
+  name                  String
+  email                 String?
+  address               String?
+  city                  String?
+  state                 String?
+  pincode               String?
+  dateOfBirth           DateTime?
+  anniversary           DateTime?
+  loyaltyTier           LoyaltyTier @default(BRONZE)
+  lifetimePurchaseValue Float       @default(0)
+  kycVerified           Boolean     @default(false)
+  aadhaarEncrypted      String?
+  panNumber             String?
+  notes                 String?
+  active                Boolean     @default(true)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  tenant        Tenant               @relation(fields: [tenantId], references: [id])
+  transactions  TransactionSession[]
+  enrollments   SchemeEnrollment[]
+
+  @@unique([tenantId, phone])
+  @@map("customers")
+}
+
+// ─── SALES & TRANSACTIONS ───────────────────────────────────────────
+
+model TransactionSession {
+  id                String          @id @default(cuid())
+  tenantId          String
+  branchId          String
+  customerId        String?
+  userId            String
+  transactionType   TransactionType
+  netDirection      NetDirection?
+  invoiceNumber     String?
+  subtotal          Float           @default(0)
+  totalGst          Float           @default(0)
+  totalDiscount     Float           @default(0)
+  grandTotal        Float           @default(0)
+  exchangeValue     Float?
+  netPayable        Float           @default(0)
+  kycTriggered      Boolean         @default(false)
+  status            String          @default("DRAFT")
+  notes             String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  branch    Branch    @relation(fields: [branchId], references: [id])
+  customer  Customer? @relation(fields: [customerId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+  lineItems TransactionLineItem[]
+  payments  Payment[]
+
+  @@map("transaction_sessions")
+}
+
+model TransactionLineItem {
+  id                  String      @id @default(cuid())
+  transactionId       String
+  productId           String?
+  description         String
+  pricingType         PricingType
+  quantity            Int         @default(1)
+  grossWeight         Float?
+  netWeight           Float?
+  metalRate           Float?
+  makingCharge        Float?
+  stoneValue          Float?
+  unitPrice           Float
+  discount            Float       @default(0)
+  taxableValue        Float
+  hsnCode             String
+  gstRate             Float
+  cgstAmount          Float
+  sgstAmount          Float
+  igstAmount          Float       @default(0)
+  lineTotal           Float
+  isExchangeItem      Boolean     @default(false)
+  createdAt           DateTime    @default(now())
+
+  transaction TransactionSession @relation(fields: [transactionId], references: [id])
+  product     Product?           @relation(fields: [productId], references: [id])
+
+  @@map("transaction_line_items")
+}
+
+model Payment {
+  id            String      @id @default(cuid())
+  transactionId String
+  paymentMode   PaymentMode
+  amount        Float
+  reference     String?
+  createdAt     DateTime    @default(now())
+
+  transaction TransactionSession @relation(fields: [transactionId], references: [id])
+
+  @@map("payments")
+}
+
+// ─── SAVINGS SCHEMES ────────────────────────────────────────────────
+
+model Scheme {
+  id              String     @id @default(cuid())
+  tenantId        String
+  name            String
+  schemeType      SchemeType
+  durationMonths  Int
+  installmentAmount Float?
+  bonusMonth      Int?
+  bonusPercent    Float?
+  description     String?
+  active          Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  tenant      Tenant             @relation(fields: [tenantId], references: [id])
+  enrollments SchemeEnrollment[]
+
+  @@map("schemes")
+}
+
+model SchemeEnrollment {
+  id              String       @id @default(cuid())
+  schemeId        String
+  customerId      String
+  enrollmentDate  DateTime     @default(now())
+  maturityDate    DateTime
+  status          SchemeStatus @default(ACTIVE)
+  totalPaid       Float        @default(0)
+  totalGrams      Float        @default(0)
+  bonusAmount     Float        @default(0)
+  maturityValue   Float        @default(0)
+  redeemedAt      DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  scheme       Scheme              @relation(fields: [schemeId], references: [id])
+  customer     Customer            @relation(fields: [customerId], references: [id])
+  installments SchemeInstallment[]
+
+  @@map("scheme_enrollments")
+}
+
+model SchemeInstallment {
+  id              String            @id @default(cuid())
+  enrollmentId    String
+  installmentNo   Int
+  dueDate         DateTime
+  paidDate        DateTime?
+  amount          Float
+  gramsAccumulated Float?
+  metalRateOnDate Float?
+  status          InstallmentStatus @default(DUE)
+  collectedById   String?
+  createdAt       DateTime          @default(now())
+
+  enrollment  SchemeEnrollment @relation(fields: [enrollmentId], references: [id])
+  collectedBy User?            @relation("CollectedBy", fields: [collectedById], references: [id])
+
+  @@map("scheme_installments")
+}
+
+// ─── METAL RATE BOARD ───────────────────────────────────────────────
+
+model MetalRate {
+  id         String    @id @default(cuid())
+  tenantId   String
+  metalType  MetalType
+  ratePerGram Float
+  source     String    @default("MANUAL")
+  effectiveAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, metalType, effectiveAt])
+  @@map("metal_rates")
+}
+
+// ─── SAFE LOCKER ────────────────────────────────────────────────────
+
+model SafeLocker {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  location  String?
+  capacity  Int?
+  occupied  Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("safe_lockers")
+}
+
+// ─── INTER-BRANCH TRANSFER ──────────────────────────────────────────
+
+model StockTransfer {
+  id              String         @id @default(cuid())
+  fromBranchId    String
+  toBranchId      String
+  transferNumber  String
+  status          TransferStatus @default(REQUESTED)
+  requestedById   String
+  approvedById    String?
+  receivedById    String?
+  requestedAt     DateTime       @default(now())
+  shippedAt       DateTime?
+  receivedAt      DateTime?
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  fromBranch Branch              @relation("TransferFrom", fields: [fromBranchId], references: [id])
+  toBranch   Branch              @relation("TransferTo", fields: [toBranchId], references: [id])
+  items      StockTransferItem[]
+
+  @@map("stock_transfers")
+}
+
+model StockTransferItem {
+  id            String @id @default(cuid())
+  transferId    String
+  stockItemId   String
+  quantity      Int    @default(1)
+
+  transfer  StockTransfer @relation(fields: [transferId], references: [id])
+  stockItem StockItem     @relation(fields: [stockItemId], references: [id])
+
+  @@map("stock_transfer_items")
+}
+
+// ─── DOUBLE-ENTRY ACCOUNTING ────────────────────────────────────────
+
+model ChartOfAccount {
+  id           String   @id @default(cuid())
+  tenantId     String
+  code         String
+  name         String
+  parentId     String?
+  accountType  String
+  description  String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  tenant  Tenant          @relation(fields: [tenantId], references: [id])
+  parent  ChartOfAccount? @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children ChartOfAccount[] @relation("AccountHierarchy")
+  entries JournalEntry[]
+
+  @@unique([tenantId, code])
+  @@map("chart_of_accounts")
+}
+
+model JournalEntry {
+  id          String      @id @default(cuid())
+  accountId   String
+  dayBookId   String?
+  userId      String?
+  entryDate   DateTime    @default(now())
+  entryType   JournalType
+  amount      Float
+  narration   String?
+  referenceType String?
+  referenceId   String?
+  createdAt   DateTime    @default(now())
+
+  account ChartOfAccount @relation(fields: [accountId], references: [id])
+  dayBook DayBook?       @relation(fields: [dayBookId], references: [id])
+  user    User?          @relation(fields: [userId], references: [id])
+
+  @@map("journal_entries")
+}
+
+model DayBook {
+  id           String        @id @default(cuid())
+  branchId     String
+  date         DateTime
+  status       DayBookStatus @default(OPEN)
+  openingCash  Float         @default(0)
+  closingCash  Float?
+  openedById   String?
+  closedById   String?
+  approvedById String?
+  notes        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  branch  Branch         @relation(fields: [branchId], references: [id])
+  entries JournalEntry[]
+
+  @@unique([branchId, date])
+  @@map("day_books")
+}
