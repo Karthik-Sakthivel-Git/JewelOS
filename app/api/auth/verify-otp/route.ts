@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { verifyOtp } from "@/lib/auth";
 
 const schema = z.object({
   phone: z.string().regex(/^\+91[6-9]\d{9}$/, "Invalid Indian mobile number"),
@@ -11,18 +12,17 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { phone, otp } = schema.parse(body);
 
-    // TODO: Verify OTP from database
-    // TODO: Create/find user and generate session
-    // For development, accept any 6-digit OTP
-    if (process.env.NODE_ENV === "development") {
-      return NextResponse.json({
-        success: true,
-        message: "Verified (dev mode)",
-      });
+    const result = await verifyOtp(phone, otp);
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.message }, { status: 401 });
     }
 
-    // Production: verify against stored OTP
-    return NextResponse.json({ error: "Invalid OTP" }, { status: 401 });
+    // TODO: Create/find user in DB and generate NextAuth session
+    return NextResponse.json({
+      success: true,
+      message: result.message,
+    });
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json(

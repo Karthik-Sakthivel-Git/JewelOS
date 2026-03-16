@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type LoginStep = "phone" | "otp";
 
@@ -10,6 +10,21 @@ export default function LoginPage() {
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [devBypass, setDevBypass] = useState<{
+    active: boolean;
+    otpCode?: string;
+  }>({ active: false });
+
+  useEffect(() => {
+    fetch("/api/auth/dev-status")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.devBypass) {
+          setDevBypass({ active: true, otpCode: data.otpCode });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const isValidPhone = /^[6-9]\d{9}$/.test(phone);
 
@@ -69,6 +84,12 @@ export default function LoginPage() {
 
   return (
     <div className="card p-8">
+      {devBypass.active && (
+        <div className="mb-4 rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-2.5 text-center text-sm font-medium text-yellow-800">
+          Dev mode: OTP is <span className="font-mono font-bold">{devBypass.otpCode}</span>
+        </div>
+      )}
+
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold text-maroon-800">
           Jewel<span className="text-gold-400">OS</span>
@@ -140,7 +161,7 @@ export default function LoginPage() {
               type="text"
               inputMode="numeric"
               maxLength={6}
-              placeholder="000000"
+              placeholder={devBypass.active ? devBypass.otpCode : "000000"}
               value={otp}
               onChange={(e) =>
                 setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))

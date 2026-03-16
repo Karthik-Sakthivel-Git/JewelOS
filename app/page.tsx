@@ -57,11 +57,11 @@ export default function LandingPage() {
           {/* Faint paisley texture overlay */}
           <div className="paisley-bg absolute inset-0 opacity-30" />
 
-          <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8 lg:py-36">
+          <div className="relative mx-auto max-w-7xl px-4 pt-4 pb-10 sm:px-6 sm:pt-4 sm:pb-14 lg:px-8 lg:pt-4 lg:pb-20">
             <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
               {/* Left content */}
               <div className="max-w-xl">
-                <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-gold-400/30 bg-gold-400/10 px-4 py-1.5 text-xs font-medium text-gold-400">
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-gold-400/30 bg-gold-400/10 px-4 py-1.5 text-xs font-medium text-gold-400">
                   <Star className="h-3.5 w-3.5 fill-gold-400" />
                   Built for Indian MSME Jewellers
                 </div>
