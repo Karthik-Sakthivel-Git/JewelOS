@@ -14,6 +14,15 @@ export const PricingTypeEnum = z.enum(["WEIGHT_BASED", "FIXED_MRP"]);
 
 export const UnitOfMeasureEnum = z.enum(["GRAMS", "PIECES", "CARATS", "MILLIGRAMS"]);
 
+function toOptionalNum(val: unknown): number | undefined {
+  if (val === null || val === undefined || val === "") return undefined;
+  const n = Number(val);
+  return isNaN(n) ? undefined : n;
+}
+
+const optionalFloat = z.preprocess(toOptionalNum, z.number().min(0).optional());
+const optionalPurity = z.preprocess(toOptionalNum, z.number().min(0).max(100).optional());
+
 export const productCreateSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   category: StockCategoryEnum,
@@ -22,17 +31,17 @@ export const productCreateSchema = z.object({
   description: z.string().optional(),
 
   metalType: MetalTypeEnum.nullable().optional(),
-  purity: z.coerce.number().min(0).max(100).nullable().optional(),
-  grossWeight: z.coerce.number().min(0).nullable().optional(),
-  netWeight: z.coerce.number().min(0).nullable().optional(),
+  purity: optionalPurity,
+  grossWeight: optionalFloat,
+  netWeight: optionalFloat,
   stoneType: z.string().optional(),
-  stoneWeight: z.coerce.number().min(0).nullable().optional(),
-  stoneValue: z.coerce.number().min(0).nullable().optional(),
+  stoneWeight: optionalFloat,
+  stoneValue: optionalFloat,
 
   pricingType: PricingTypeEnum,
   makingChargeType: z.enum(["PER_GRAM", "FLAT", "PERCENTAGE"]).optional(),
-  makingChargeValue: z.coerce.number().min(0).nullable().optional(),
-  supplierMrp: z.coerce.number().min(0).nullable().optional(),
+  makingChargeValue: optionalFloat,
+  supplierMrp: optionalFloat,
 
   hsnCode: z.string().min(4, "HSN code is required"),
   gstRate: z.coerce.number().min(0).max(28).default(3),

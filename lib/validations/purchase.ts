@@ -7,16 +7,25 @@ export const PurchaseTypeEnum = z.enum([
 export const UnitOfMeasureEnum = z.enum(["GRAMS", "PIECES", "CARATS", "MILLIGRAMS"]);
 export const MetalTypeEnum = z.enum(["GOLD_24K", "GOLD_22K", "GOLD_18K", "SILVER", "PLATINUM"]);
 
+function toOptionalNum(val: unknown): number | undefined {
+  if (val === null || val === undefined || val === "") return undefined;
+  const n = Number(val);
+  return isNaN(n) ? undefined : n;
+}
+
+const optionalFloat = z.preprocess(toOptionalNum, z.number().min(0).optional());
+const optionalPct = z.preprocess(toOptionalNum, z.number().min(0).max(100).optional());
+
 const poLineItemSchema = z.object({
   productId: z.string().optional(),
   description: z.string().min(1, "Description is required"),
   quantity: z.coerce.number().int().min(1).default(1),
   unitOfMeasure: UnitOfMeasureEnum.default("GRAMS"),
   metalType: MetalTypeEnum.nullable().optional(),
-  purity: z.coerce.number().min(0).max(100).nullable().optional(),
-  ratePerUnit: z.coerce.number().min(0).nullable().optional(),
-  wastagePercent: z.coerce.number().min(0).max(100).nullable().optional(),
-  totalAmount: z.coerce.number().min(0).nullable().optional(),
+  purity: optionalPct,
+  ratePerUnit: optionalFloat,
+  wastagePercent: optionalPct,
+  totalAmount: optionalFloat,
 });
 
 export const purchaseOrderCreateSchema = z.object({
@@ -34,19 +43,19 @@ const grnLineItemSchema = z.object({
   productId: z.string().min(1),
   description: z.string().optional(),
   quantity: z.coerce.number().int().min(1).default(1),
-  grossWeight: z.coerce.number().min(0).nullable().optional(),
-  netWeight: z.coerce.number().min(0).nullable().optional(),
-  scaleWeight: z.coerce.number().min(0).nullable().optional(),
-  stoneWeight: z.coerce.number().min(0).nullable().optional(),
-  stoneValue: z.coerce.number().min(0).nullable().optional(),
-  wastagePercent: z.coerce.number().min(0).max(100).nullable().optional(),
-  purity: z.coerce.number().min(0).max(100).nullable().optional(),
+  grossWeight: optionalFloat,
+  netWeight: optionalFloat,
+  scaleWeight: optionalFloat,
+  stoneWeight: optionalFloat,
+  stoneValue: optionalFloat,
+  wastagePercent: optionalPct,
+  purity: optionalPct,
   purityTestResult: z.string().optional(),
   unitOfMeasure: UnitOfMeasureEnum.default("GRAMS"),
   pricingType: z.enum(["WEIGHT_BASED", "FIXED_MRP"]).default("WEIGHT_BASED"),
-  unitPrice: z.coerce.number().min(0).nullable().optional(),
-  supplierMrp: z.coerce.number().min(0).nullable().optional(),
-  totalPrice: z.coerce.number().min(0).nullable().optional(),
+  unitPrice: optionalFloat,
+  supplierMrp: optionalFloat,
+  totalPrice: optionalFloat,
 });
 
 export const grnCreateSchema = z.object({
@@ -63,10 +72,10 @@ const returnLineItemSchema = z.object({
   grnLineItemId: z.string().optional(),
   description: z.string().min(1),
   quantity: z.coerce.number().int().min(1).default(1),
-  grossWeight: z.coerce.number().min(0).nullable().optional(),
-  netWeight: z.coerce.number().min(0).nullable().optional(),
-  unitPrice: z.coerce.number().min(0).nullable().optional(),
-  totalPrice: z.coerce.number().min(0).nullable().optional(),
+  grossWeight: optionalFloat,
+  netWeight: optionalFloat,
+  unitPrice: optionalFloat,
+  totalPrice: optionalFloat,
   reasonCode: z.string().optional(),
 });
 
