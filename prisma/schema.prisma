@@ -237,6 +237,8 @@ model Product {
   name              String
   description       String?
   category          StockCategory
+  subcategory       String?
+  designCode        String?
   metalType         MetalType?
   pricingType       PricingType
   purity            Float?
@@ -245,9 +247,16 @@ model Product {
   unitOfMeasure     UnitOfMeasure @default(GRAMS)
   makingChargeType  String?       @default("PER_GRAM")
   makingChargeValue Float?
+  stoneType         String?
+  stoneWeight       Float?
+  stoneValue        Float?
   imageUrl          String?
+  images            String[]      @default([])
   barcode           String?
   rfidTag           String?
+  bisHuid           String?
+  certificateUrl    String?
+  supplierMrp       Float?
   active            Boolean       @default(true)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
@@ -256,6 +265,7 @@ model Product {
   stockItems StockItem[]
   lineItems  TransactionLineItem[]
   grnItems   GrnLineItem[]
+  poLineItems PurchaseOrderLineItem[]
 
   @@unique([tenantId, sku])
   @@map("products")
@@ -309,8 +319,9 @@ model Supplier {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  tenant         Tenant                @relation(fields: [tenantId], references: [id])
   purchaseOrders PurchaseOrder[]
+  ledgerEntries  SupplierLedgerEntry[]
 
   @@map("suppliers")
 }
@@ -324,32 +335,62 @@ model PurchaseOrder {
   purchaseType    PurchaseType
   status          String       @default("DRAFT")
   totalAmount     Float?
+  totalGrams      Float?
   notes           String?
   expectedDate    DateTime?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
-  branch   Branch   @relation(fields: [branchId], references: [id])
-  supplier Supplier @relation(fields: [supplierId], references: [id])
-  grns     GoodsReceivedNote[]
+  branch    Branch                  @relation(fields: [branchId], references: [id])
+  supplier  Supplier                @relation(fields: [supplierId], references: [id])
+  lineItems PurchaseOrderLineItem[]
+  grns      GoodsReceivedNote[]
 
   @@map("purchase_orders")
 }
 
-model GoodsReceivedNote {
-  id                        String   @id @default(cuid())
-  purchaseOrderId           String
-  grnNumber                 String
-  receivedDate              DateTime @default(now())
-  requiresWeightVerification Boolean  @default(true)
-  verifiedBy                String?
-  notes                     String?
-  createdAt                 DateTime @default(now())
-  updatedAt                 DateTime @updatedAt
+model PurchaseOrderLineItem {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  productId       String?
+  description     String
+  quantity        Int           @default(1)
+  unitOfMeasure   UnitOfMeasure @default(GRAMS)
+  metalType       MetalType?
+  purity          Float?
+  ratePerUnit     Float?
+  wastagePercent  Float?
+  totalAmount     Float?
+  createdAt       DateTime      @default(now())
 
-  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product       Product?      @relation(fields: [productId], references: [id])
+
+  @@map("purchase_order_line_items")
+}
+
+model GoodsReceivedNote {
+  id                         String   @id @default(cuid())
+  tenantId                   String
+  branchId                   String
+  supplierId                 String
+  purchaseOrderId            String?
+  grnNumber                  String
+  status                     String   @default("PENDING")
+  receivedDate               DateTime @default(now())
+  requiresWeightVerification Boolean  @default(true)
+  verifiedBy                 String?
+  purityTestResult           String?
+  totalAmountRs              Float?
+  totalWeightGrams           Float?
+  notes                      String?
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
   lineItems     GrnLineItem[]
   stockItems    StockItem[]
+  returns       PurchaseReturn[]
 
   @@map("goods_received_notes")
 }
@@ -358,21 +399,95 @@ model GrnLineItem {
   id              String        @id @default(cuid())
   grnId           String
   productId       String
+  description     String?
   quantity        Int           @default(1)
   grossWeight     Float?
   netWeight       Float?
+  scaleWeight     Float?
   stoneWeight     Float?
   stoneValue      Float?
   wastagePercent  Float?
+  purity          Float?
+  purityTestResult String?
   unitOfMeasure   UnitOfMeasure @default(GRAMS)
+  pricingType     PricingType   @default(WEIGHT_BASED)
   unitPrice       Float?
+  supplierMrp     Float?
   totalPrice      Float?
+  accepted        Boolean       @default(true)
   createdAt       DateTime      @default(now())
 
-  grn     GoodsReceivedNote @relation(fields: [grnId], references: [id])
+  grn     GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
   product Product           @relation(fields: [productId], references: [id])
 
   @@map("grn_line_items")
+}
+
+// ─── PURCHASE RETURNS ───────────────────────────────────────────────
+
+model PurchaseReturn {
+  id              String   @id @default(cuid())
+  tenantId        String
+  grnId           String
+  supplierId      String
+  returnNumber    String
+  returnDate      DateTime @default(now())
+  reasonCode      String
+  status          String   @default("DRAFT")
+  totalAmountRs   Float?
+  totalWeightGrams Float?
+  debitNoteNumber String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  grn       GoodsReceivedNote        @relation(fields: [grnId], references: [id])
+  lineItems PurchaseReturnLineItem[]
+
+  @@map("purchase_returns")
+}
+
+model PurchaseReturnLineItem {
+  id            String   @id @default(cuid())
+  returnId      String
+  grnLineItemId String?
+  description   String
+  quantity      Int      @default(1)
+  grossWeight   Float?
+  netWeight     Float?
+  unitPrice     Float?
+  totalPrice    Float?
+  reasonCode    String?
+  createdAt     DateTime @default(now())
+
+  purchaseReturn PurchaseReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+
+  @@map("purchase_return_line_items")
+}
+
+// ─── SUPPLIER LEDGER ────────────────────────────────────────────────
+
+model SupplierLedgerEntry {
+  id            String   @id @default(cuid())
+  supplierId    String
+  tenantId      String
+  entryDate     DateTime @default(now())
+  entryType     String
+  referenceType String?
+  referenceId   String?
+  debitRs       Float    @default(0)
+  creditRs      Float    @default(0)
+  debitGrams    Float    @default(0)
+  creditGrams   Float    @default(0)
+  runningBalRs  Float    @default(0)
+  runningBalGrams Float  @default(0)
+  narration     String?
+  createdAt     DateTime @default(now())
+
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+
+  @@index([supplierId, entryDate])
+  @@map("supplier_ledger_entries")
 }
 
 // ─── CUSTOMER CRM ───────────────────────────────────────────────────
