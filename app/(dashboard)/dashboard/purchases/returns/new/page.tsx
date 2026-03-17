@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2, AlertTriangle } from "lucide-react";
@@ -32,6 +32,14 @@ function emptyReturnLine(): ReturnLine {
 }
 
 export default function NewPurchaseReturnPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20 text-gray-400">Loading...</div>}>
+      <NewPurchaseReturnContent />
+    </Suspense>
+  );
+}
+
+function NewPurchaseReturnContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const presetGrnId = searchParams.get("grnId") ?? "";

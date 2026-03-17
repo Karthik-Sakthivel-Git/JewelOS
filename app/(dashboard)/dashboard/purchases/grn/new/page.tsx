@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2, Scale, AlertTriangle, Package } from "lucide-react";
@@ -63,6 +63,14 @@ function emptyLine(): GrnLine {
 }
 
 export default function NewGrnPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20 text-gray-400">Loading...</div>}>
+      <NewGrnContent />
+    </Suspense>
+  );
+}
+
+function NewGrnContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const poId = searchParams.get("poId");
