@@ -7,6 +7,7 @@ import { TagPrintLayout } from "@/components/inventory/tag-print-layout";
 
 interface ProductRow {
   id: string;
+  tenantId: string;
   sku: string;
   name: string;
   barcode: string;
@@ -15,7 +16,9 @@ interface ProductRow {
   grossWeight?: number;
   netWeight?: number;
   supplierMrp?: number;
+  makingChargeValue?: number;
   bisHuid?: string;
+  rfidTag?: string | null;
 }
 
 export default function TagPrintPage() {
@@ -23,6 +26,8 @@ export default function TagPrintPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
+  const [template, setTemplate] = useState<"small" | "medium" | "large">("medium");
+  const [format, setFormat] = useState<"barcode" | "qr" | "both">("both");
 
   useEffect(() => {
     fetch("/api/products?limit=200&active=true")
@@ -30,6 +35,11 @@ export default function TagPrintPage() {
       .then((d) => setProducts(d.products ?? []))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    // Small tags: QR is mandatory and space is tight — force QR-only.
+    if (template === "small" && format !== "qr") setFormat("qr");
+  }, [template, format]);
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -51,33 +61,114 @@ export default function TagPrintPage() {
   const selectedProducts = products.filter((p) => selected.has(p.id));
 
   const tagData = selectedProducts.map((p) => ({
+    id: p.id,
+    tenantId: p.tenantId,
     sku: p.sku,
     name: p.name,
     barcode: p.barcode || p.sku,
     metalType: p.metalType,
     purity: p.purity,
+    grossWeight: p.grossWeight,
+    netWeight: p.netWeight,
+    makingChargeValue: p.makingChargeValue,
     bisHuid: p.bisHuid,
     price: p.supplierMrp,
+    rfid: p.rfidTag || p.sku,
   }));
 
   if (showPreview) {
     return (
       <div>
-        <div className="no-print mb-4 flex items-center justify-between">
-          <button
-            onClick={() => setShowPreview(false)}
-            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
-          >
-            <ArrowLeft className="h-4 w-4" /> Back to selection
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="btn-primary flex items-center gap-2"
-          >
-            <Printer className="h-4 w-4" /> Print
-          </button>
+        <div className="no-print mb-4 space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <button
+              onClick={() => setShowPreview(false)}
+              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back to selection
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Printer className="h-4 w-4" /> Print
+            </button>
+          </div>
+
+          {/* Template selector */}
+          <div className="flex flex-wrap items-center gap-4 text-sm">
+            <span className="font-medium text-gray-700">Tag size:</span>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="tag-template"
+                value="small"
+                checked={template === "small"}
+                onChange={() => setTemplate("small")}
+              />
+              <span>Small (30×20mm)</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="tag-template"
+                value="medium"
+                checked={template === "medium"}
+                onChange={() => setTemplate("medium")}
+              />
+              <span>Medium (60×40mm)</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="tag-template"
+                value="large"
+                checked={template === "large"}
+                onChange={() => setTemplate("large")}
+              />
+              <span>Large (90×50mm)</span>
+            </label>
+          </div>
+
+          {/* Format selector */}
+          <div className="flex flex-wrap items-center gap-4 text-sm">
+            <span className="font-medium text-gray-700">Code format:</span>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="tag-format"
+                value="barcode"
+                checked={format === "barcode"}
+                onChange={() => setFormat("barcode")}
+                disabled={template === "small"}
+              />
+              <span>Barcode only</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="tag-format"
+                value="qr"
+                checked={format === "qr"}
+                onChange={() => setFormat("qr")}
+              />
+              <span>QR only</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="tag-format"
+                value="both"
+                checked={format === "both"}
+                onChange={() => setFormat("both")}
+                disabled={template === "small"}
+              />
+              <span>Both (recommended)</span>
+            </label>
+          </div>
         </div>
-        <TagPrintLayout tags={tagData} />
+
+        <TagPrintLayout tags={tagData} template={template} format={format} />
       </div>
     );
   }
