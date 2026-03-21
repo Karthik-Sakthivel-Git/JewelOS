@@ -14,14 +14,24 @@ export const PricingTypeEnum = z.enum(["WEIGHT_BASED", "FIXED_MRP"]);
 
 export const UnitOfMeasureEnum = z.enum(["GRAMS", "PIECES", "CARATS", "MILLIGRAMS"]);
 
-function toOptionalNum(val: unknown): number | undefined {
-  if (val === null || val === undefined || val === "") return undefined;
-  const n = Number(val);
-  return isNaN(n) ? undefined : n;
+export const TargetGroupEnum = z.enum(["LADIES", "GENTS", "KIDS", "PAIR", "UNISEX"]);
+
+export const WastageTypeEnum = z.enum(["PERCENTAGE", "PER_GRAM", "FLAT"]);
+
+export const SizeStandardEnum = z.enum(["INDIAN", "US", "UK", "EU", "MM", "CM", "FREE"]);
+
+function emptyToUndefined(val: unknown): unknown {
+  if (val === "" || val === null || val === undefined) return undefined;
+  if (typeof val === "number" && Number.isNaN(val)) return undefined;
+  return val;
 }
 
-const optionalFloat = z.preprocess(toOptionalNum, z.number().min(0).optional());
-const optionalPurity = z.preprocess(toOptionalNum, z.number().min(0).max(100).optional());
+function emptyToNull(val: unknown): unknown {
+  return val === "" ? null : val;
+}
+
+const optionalFloat = z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional());
+const optionalPurity = z.preprocess(emptyToUndefined, z.coerce.number().min(0).max(100).optional());
 
 export const productCreateSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -30,7 +40,7 @@ export const productCreateSchema = z.object({
   designCode: z.string().optional(),
   description: z.string().optional(),
 
-  metalType: MetalTypeEnum.nullable().optional(),
+  metalType: z.preprocess(emptyToNull, MetalTypeEnum.nullable().optional()),
   purity: optionalPurity,
   grossWeight: optionalFloat,
   netWeight: optionalFloat,
@@ -39,7 +49,7 @@ export const productCreateSchema = z.object({
   stoneValue: optionalFloat,
 
   pricingType: PricingTypeEnum,
-  makingChargeType: z.enum(["PER_GRAM", "FLAT", "PERCENTAGE"]).optional(),
+  makingChargeType: z.preprocess(emptyToUndefined, z.enum(["PER_GRAM", "FLAT", "PERCENTAGE"]).optional()),
   makingChargeValue: optionalFloat,
   supplierMrp: optionalFloat,
 
@@ -47,7 +57,18 @@ export const productCreateSchema = z.object({
   gstRate: z.coerce.number().min(0).max(28).default(3),
   unitOfMeasure: UnitOfMeasureEnum.default("GRAMS"),
   bisHuid: z.string().optional(),
+  bisHallmarked: z.boolean().optional().default(false),
   certificateUrl: z.string().optional(),
+
+  targetGroup: TargetGroupEnum.optional().default("UNISEX"),
+
+  wastageType: z.preprocess(emptyToNull, WastageTypeEnum.optional().nullable()),
+  wastageValue: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional().default(0)),
+
+  sizeLabel: z.string().optional().nullable(),
+  sizeStandard: z.preprocess(emptyToNull, SizeStandardEnum.optional().nullable()),
+  sizeLadies: z.string().optional().nullable(),
+  sizeGents: z.string().optional().nullable(),
 
   images: z.array(z.string()).max(8).default([]),
 });

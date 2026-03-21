@@ -39,3 +39,9 @@ next-env.d.ts
 # IDE
 .vscode/
 .idea/
+
+.vercel
+.env*.local
+# debug logs
+debug-*.log
+.cursor/

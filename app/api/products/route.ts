@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { productCreateSchema, productFilterSchema } from "@/lib/validations/product";
 import { generateSku, generateBarcode, generateRfidTag } from "@/lib/utils/sku-generator";
@@ -46,8 +47,13 @@ export async function GET(req: NextRequest) {
     if (error instanceof TenantError) {
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
-    console.error("GET /api/products error:", error);
-    return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    console.error("GET /api/products error:", msg, error);
+    const isDev = process.env.NODE_ENV === "development";
+    return NextResponse.json(
+      { error: "Failed to fetch products", ...(isDev && { debug: msg }) },
+      { status: 500 }
+    );
   }
 }
 
@@ -85,7 +91,15 @@ export async function POST(req: NextRequest) {
         stoneValue: data.stoneValue ?? null,
         supplierMrp: data.supplierMrp ?? null,
         bisHuid: data.bisHuid,
+        bisHallmarked: data.bisHallmarked ?? false,
         certificateUrl: data.certificateUrl || null,
+        targetGroup: data.targetGroup ?? "UNISEX",
+        wastageType: data.wastageType ?? null,
+        wastageValue: data.wastageValue ?? null,
+        sizeLabel: data.sizeLabel ?? null,
+        sizeStandard: data.sizeStandard ?? null,
+        sizeLadies: data.sizeLadies ?? null,
+        sizeGents: data.sizeGents ?? null,
         images: data.images,
       },
     });
@@ -95,10 +109,15 @@ export async function POST(req: NextRequest) {
     if (error instanceof TenantError) {
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
-    if (error instanceof Error && error.name === "ZodError") {
-      return NextResponse.json({ error: "Validation failed", details: error }, { status: 400 });
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "Validation failed", details: { issues: error.issues } }, { status: 400 });
     }
-    console.error("POST /api/products error:", error);
-    return NextResponse.json({ error: "Failed to create product" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    console.error("POST /api/products error:", msg, error);
+    const isDev = process.env.NODE_ENV === "development";
+    return NextResponse.json(
+      { error: "Failed to create product", ...(isDev && { debug: msg }) },
+      { status: 500 }
+    );
   }
 }

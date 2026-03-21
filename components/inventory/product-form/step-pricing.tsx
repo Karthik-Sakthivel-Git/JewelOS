@@ -67,7 +67,7 @@ export function StepPricing({ form }: Props) {
         <div className="rounded-xl border border-gold-200 bg-gold-50/30 p-5 space-y-5">
           <div className="rounded-lg bg-white/60 p-3 text-xs text-gray-600">
             <span className="font-semibold text-gold-700">Formula:</span>{" "}
-            Price = net_weight x live_rate + making_charges + stone_value
+            Price = net_weight x live_rate + making_charges + wastage + stone_value
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
@@ -96,6 +96,45 @@ export function StepPricing({ form }: Props) {
                 className="input-field"
                 placeholder="0.00"
               />
+            </div>
+          </div>
+
+          {/* Wastage Charge */}
+          <div className="border-t border-gold-200 pt-4">
+            <h4 className="mb-3 text-sm font-semibold text-gray-800">
+              Wastage Charge
+              <span className="ml-2 text-xs font-normal text-gray-400">Optional — separate from making charges</span>
+            </h4>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Wastage Type
+                </label>
+                <select
+                  {...register("wastageType", {
+                    setValueAs: (value) => (value === "" ? null : value),
+                  })}
+                  className="input-field"
+                >
+                  <option value="">None</option>
+                  <option value="PERCENTAGE">Percentage (%)</option>
+                  <option value="PER_GRAM">Per Gram (Rs./g)</option>
+                  <option value="FLAT">Flat Amount (Rs.)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Wastage Value
+                </label>
+                <input
+                  type="number"
+                  step="0.001"
+                  {...register("wastageValue", { valueAsNumber: true })}
+                  className="input-field"
+                  placeholder="0.000"
+                />
+              </div>
             </div>
           </div>
         </div>

@@ -72,6 +72,22 @@ export function StepBasic({ form }: Props) {
           />
         </div>
 
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            Target Group
+          </label>
+          <select {...register("targetGroup")} className="input-field">
+            <option value="UNISEX">Unisex</option>
+            <option value="LADIES">Ladies</option>
+            <option value="GENTS">Gents</option>
+            <option value="KIDS">Kids</option>
+            <option value="PAIR">Pair (set)</option>
+          </select>
+          <p className="mt-1 text-xs text-gray-400">
+            Age / gender classification for the product
+          </p>
+        </div>
+
         <div className="sm:col-span-2">
           <label className="mb-1 block text-sm font-medium text-gray-700">
             Description

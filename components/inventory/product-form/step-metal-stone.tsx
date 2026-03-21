@@ -10,9 +10,10 @@ interface Props {
 export function StepMetalStone({ form }: Props) {
   const { register, watch, setValue, formState: { errors } } = form;
   const metalType = watch("metalType");
+  const targetGroup = watch("targetGroup");
 
   function handleMetalChange(value: string) {
-    setValue("metalType", value);
+    setValue("metalType", value || null);
     const defaultPurity = PURITY_MAP[value];
     if (defaultPurity) {
       setValue("purity", defaultPurity);
@@ -132,6 +133,75 @@ export function StepMetalStone({ form }: Props) {
               placeholder="0.00"
             />
           </div>
+        </div>
+      </div>
+
+      {/* Size details */}
+      <div className="gold-divider" />
+      <div>
+        <h4 className="text-sm font-semibold text-gray-800">Size</h4>
+        <p className="mb-3 text-xs text-gray-400">Optional — for rings, bangles, chains, etc.</p>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Size Label
+            </label>
+            <input
+              {...register("sizeLabel")}
+              className="input-field"
+              placeholder='e.g. 12, 2/8, 18 inch, Free Size'
+            />
+            <p className="mt-1 text-xs text-gray-400">
+              Ring no., bangle size, chain length, or "Free Size"
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Size Standard
+            </label>
+            <select
+              {...register("sizeStandard", {
+                setValueAs: (value) => (value === "" ? null : value),
+              })}
+              className="input-field"
+            >
+              <option value="">Not applicable</option>
+              <option value="INDIAN">Indian</option>
+              <option value="US">US</option>
+              <option value="UK">UK</option>
+              <option value="EU">EU</option>
+              <option value="MM">MM (millimetres)</option>
+              <option value="CM">CM (centimetres)</option>
+              <option value="FREE">Free Size</option>
+            </select>
+          </div>
+
+          {targetGroup === "PAIR" && (
+            <>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Ladies Size
+                </label>
+                <input
+                  {...register("sizeLadies")}
+                  className="input-field"
+                  placeholder="e.g. 12"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Gents Size
+                </label>
+                <input
+                  {...register("sizeGents")}
+                  className="input-field"
+                  placeholder="e.g. 18"
+                />
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

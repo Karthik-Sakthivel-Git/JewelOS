@@ -34,21 +34,35 @@ export function StepCompliance({ form }: Props) {
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        {/* BIS HUID */}
-        <div>
-          <label className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-700">
-            <ShieldCheck className="h-4 w-4 text-gold-500" />
-            BIS HUID Number
+        {/* BIS HUID + Hallmarked toggle */}
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-700">
+              <ShieldCheck className="h-4 w-4 text-gold-500" />
+              BIS HUID Number
+            </label>
+            <input
+              {...register("bisHuid")}
+              className="input-field"
+              placeholder="6-character alphanumeric"
+              maxLength={6}
+            />
+            <p className="mt-1 text-xs text-gray-400">
+              Bureau of Indian Standards Hallmark Unique ID
+            </p>
+          </div>
+
+          <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 hover:bg-gray-100">
+            <input
+              type="checkbox"
+              {...register("bisHallmarked")}
+              className="h-4 w-4 rounded border-gray-300 text-gold-600 focus:ring-gold-500"
+            />
+            <div>
+              <p className="text-sm font-medium text-gray-700">BIS Hallmarked</p>
+              <p className="text-xs text-gray-400">Item carries official BIS hallmark stamp</p>
+            </div>
           </label>
-          <input
-            {...register("bisHuid")}
-            className="input-field"
-            placeholder="6-character alphanumeric"
-            maxLength={6}
-          />
-          <p className="mt-1 text-xs text-gray-400">
-            Bureau of Indian Standards Hallmark Unique ID
-          </p>
         </div>
 
         {/* HSN Code */}

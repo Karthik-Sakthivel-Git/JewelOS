@@ -19,9 +19,11 @@ export default function InventoryPage() {
   const [products, setProducts] = useState<never[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, total: 0, pages: 0 });
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchProducts = useCallback(async () => {
     setIsLoading(true);
+    setFetchError(null);
     try {
       const params = new URLSearchParams();
       if (filters.search) params.set("search", filters.search);
@@ -33,9 +35,19 @@ export default function InventoryPage() {
 
       const res = await fetch(`/api/products?${params}`);
       const data = await res.json();
+
+      if (!res.ok) {
+        const msg = data?.debug ? `${data.error}: ${data.debug}` : (data?.error ?? `Request failed (${res.status})`);
+        setFetchError(msg);
+        setProducts([]);
+        setPagination({ page: 1, total: 0, pages: 0 });
+        return;
+      }
+
       setProducts(data.products ?? []);
       setPagination(data.pagination ?? { page: 1, total: 0, pages: 0 });
-    } catch {
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : "Failed to fetch products");
       setProducts([]);
     } finally {
       setIsLoading(false);
@@ -79,6 +91,15 @@ export default function InventoryPage() {
           </Link>
         </div>
       </div>
+
+      {fetchError && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <strong>API error:</strong> {fetchError}
+          <p className="mt-1 text-xs text-amber-600">
+            Check that the dev server is running, .env.local has DATABASE_URL and DEFAULT_TENANT_ID, and the database is reachable.
+          </p>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="card p-4">

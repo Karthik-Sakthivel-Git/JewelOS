@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FileText, Gem, DollarSign, ShieldCheck, Camera, ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -27,42 +27,72 @@ export default function NewProductPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<string[]>([]);
 
   const form = useForm<ProductCreateInput>({
     resolver: zodResolver(productCreateSchema) as any,
     defaultValues: {
       name: "",
       category: undefined,
+      metalType: undefined,
+      purity: undefined,
+      grossWeight: undefined,
+      netWeight: undefined,
+      stoneType: "",
+      stoneWeight: undefined,
+      stoneValue: undefined,
       pricingType: "WEIGHT_BASED",
+      supplierMrp: undefined,
       hsnCode: "7113",
       gstRate: 3,
       unitOfMeasure: "GRAMS",
       makingChargeType: "PER_GRAM",
+      makingChargeValue: undefined,
+      targetGroup: "UNISEX",
+      wastageType: null,
+      wastageValue: 0,
+      sizeLabel: null,
+      sizeStandard: null,
+      sizeLadies: null,
+      sizeGents: null,
+      bisHuid: "",
+      bisHallmarked: false,
+      certificateUrl: "",
+      subcategory: "",
+      designCode: "",
+      description: "",
       images: [],
     },
   });
 
-  async function handleSubmit() {
-    const isValid = await form.trigger();
-    if (!isValid) {
-      setError("Please fix the validation errors before saving.");
-      return;
-    }
+  const onInvalid = (errors: FieldErrors<ProductCreateInput>) => {
+    const list = Object.entries(errors).map(([field, err]) => {
+      const e = err as { message?: string; type?: string | number } | undefined;
+      return `${field}: ${e?.message || e?.type}`;
+    });
+    setFieldErrors(list);
+    setError("Please fix the validation errors before saving.");
+  };
 
+  async function onSubmit(data: ProductCreateInput) {
     setIsSubmitting(true);
     setError(null);
+    setFieldErrors([]);
 
     try {
-      const values = form.getValues();
       const res = await fetch("/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify(data),
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "Failed to create product");
+        const err = await res.json().catch(() => ({}));
+        const msg = err?.error ?? `Failed to create product (${res.status})`;
+        const details = err?.details?.issues
+          ?.map((i: { path?: string[]; message?: string }) => `${(i.path || []).join(".")}: ${i.message}`)
+          .join("; ");
+        throw new Error(details ? `${msg} — ${details}` : msg);
       }
 
       const { product } = await res.json();
@@ -94,7 +124,14 @@ export default function NewProductPage() {
 
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {error}
+          <p className="font-medium">{error}</p>
+          {fieldErrors.length > 0 && (
+            <ul className="mt-2 list-inside list-disc text-xs">
+              {fieldErrors.map((msg) => (
+                <li key={msg}>{msg}</li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
@@ -103,8 +140,7 @@ export default function NewProductPage() {
         currentStep={currentStep}
         onStepClick={setCurrentStep}
         onNext={() => setCurrentStep((s) => Math.min(s + 1, steps.length - 1))}
-        onPrev={() => setCurrentStep((s) => Math.max(s - 1, 0))}
-        onSubmit={handleSubmit}
+        onSubmit={() => form.handleSubmit(onSubmit, onInvalid)()}
         isSubmitting={isSubmitting}
       >
         {currentStep === 0 && <StepBasic form={form as any} />}

@@ -135,6 +135,14 @@ enum DayBookStatus {
   APPROVED
 }
 
+enum TargetGroup {
+  LADIES
+  GENTS
+  KIDS
+  PAIR
+  UNISEX
+}
+
 // ─── MULTI-TENANCY ──────────────────────────────────────────────────
 
 model Tenant {
@@ -255,8 +263,16 @@ model Product {
   barcode           String?
   rfidTag           String?
   bisHuid           String?
+  bisHallmarked     Boolean       @default(false)
   certificateUrl    String?
   supplierMrp       Float?
+  targetGroup       TargetGroup?  @default(UNISEX)
+  wastageType       String?
+  wastageValue      Decimal?      @default(0) @db.Decimal(10, 3)
+  sizeLabel         String?
+  sizeStandard      String?
+  sizeLadies        String?
+  sizeGents         String?
   active            Boolean       @default(true)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
